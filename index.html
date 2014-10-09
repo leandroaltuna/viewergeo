@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+	<title>Visor de Imágenes del Censo de Infraestructura Educativa 2013</title>
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+	<meta name="viewport" content="width=device-width">
+
+	<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="css/bootstrap.spacelab.css">
+	<link rel="stylesheet" type="text/css" href="css/bootstrap-responsive.min.css">
+	<!-- <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Open+Sans"> -->
+	<link rel="stylesheet" type="text/css" href="css/maps.css">
+
+	<script type="text/javascript" src="js/general/jquery-1.10.2.min.js"></script>
+	<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+	<script type="text/javascript" src="http://www.google.com/jsapi"></script>
+	<script type="text/javascript" src="http://geoxml3.googlecode.com/svn/branches/polys/geoxml3.js"></script>
+
+
+	<script type="text/javascript">
+		
+		google.load('visualization', '1', {'packages':['corechart', 'table', 'geomap']});
+
+		var kmlArray = [];
+		var maploaded = false;
+		var layer;
+		var capaKml;
+		var table_dpto = '1GpIA0mBHMTame6QFenQeQCazLW4NiLciy3lfLvSZ';
+		var table_prov = '1tmpbIqHGt8ymHU_L_qTEOpzcMHTOh3i_zzvWB7ZQ';
+		var table_dist = '1Qvu7A-6HA7TCPVTAJ6xgld_3J7UFBr2SIlbQBz4w';
+
+		var infowindow = new google.maps.InfoWindow({
+			size: new google.maps.Size(350,800)
+		});
+
+		function checkGoogleMap() {
+			
+			//specify the target element for our messages
+			var msg = document.getElementById('msg');
+
+			if (maploaded == false) {
+				//if we dont have a fully loaded map - show the message
+				msg.innerHTML = '<b><center><em><font face="Brush Script Std">Cargando Puntos </em></b></font><img src="img/294.gif"></center>';
+				$("#msg").slideDown("fast");
+
+			} else {
+				//otherwise, show 'loaded' message then hide the message after a second
+				msg.innerHTML = '<b><center><font face="Brush Script Std">Puntos Cargados</b></font><img src="img/08.gif"></center>';
+				$("#msg").slideUp(1950);
+			} 
+		}
+
+		function initialize() {
+			var myOptions = {
+				zoom: 6,
+				center: new google.maps.LatLng(-10.089204, -69.802552),
+				mapTypeId: google.maps.MapTypeId.ROADMAP,
+				zoomControl: true,
+				zoomControlOptions: {
+					style: google.maps.ZoomControlStyle.LARGE,
+					position: google.maps.ControlPosition.RIGHT_CENTER
+				},
+				streetViewControl: true,
+				streetViewControlOptions:{
+					position: google.maps.ControlPosition.RIGHT_CENTER
+				},
+				panControl: false,
+				panControlOptions: {
+					position: google.maps.ControlPosition.RIGHT_CENTER
+				},
+				scaleControl: false,
+				scaleControlOptions: {
+					position: google.maps.ControlPosition.RIGHT_CENTER
+				},
+				mapTypeControl: true,
+				mapTypeControlOptions: {
+					style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+					position: google.maps.ControlPosition.RIGHT_CENTER
+				}
+			}
+
+			map = new google.maps.Map(document.getElementById("map-canvas"), myOptions);
+
+			capaKml = new google.maps.FusionTablesLayer({
+				query: {
+					select: "geometry",
+					from: table_dpto
+				},
+				options: {
+					styleId: 2,
+					templateId: 2
+				}
+			});
+			capaKml.setMap(map);
+			
+		}
+
+		google.maps.event.addDomListener(window, 'load', initialize);
+	</script>
+
+	<script type="text/javascript">
+		$(document).ready(function () {
+			initialize();
+			depa_region();
+
+			$('#depa').change(function(event){
+
+				$('#prov').empty();
+				$("#prov").append('<option value="0">SELECCIONE...</option>');
+				if ( $(this).val() != 0 )
+				{
+					cod_ubigeo = $(this).val();
+					load_kml_ft( table_dpto, cod_ubigeo );
+					load_ubigeo('PROV');
+
+					load_fusiontable();
+				}
+				$('#dist').html('<option value="0">SELECCIONE...</option>');
+
+			});
+
+			$('#prov').change(function(event){
+
+				$('#dist').empty();
+				$("#dist").append('<option value="0">SELECCIONE...</option>');
+				
+				if ( $(this).val() != 0 )
+				{
+					cod_ubigeo =  $('#depa').val() + $(this).val();
+					load_kml_ft( table_prov, cod_ubigeo );
+					load_ubigeo('DIST');	
+				}else{
+					load_kml_ft( table_dpto, $('#depa').val() );
+				}
+
+				load_fusiontable();
+
+			});
+
+			$('#dist').change(function(event){
+
+				if ( $(this).val() != 0 )
+				{
+					cod_ubigeo = $('#depa').val() + $('#prov').val() + $(this).val();
+					load_kml_ft( table_dist, cod_ubigeo );
+				}else{
+					cod_ubigeo = $('#depa').val() + $('#prov').val();
+					load_kml_ft( table_prov, cod_ubigeo );
+				}
+
+				load_fusiontable();
+				
+			});
+
+			function depa_region() {
+
+				$('#depa').empty();
+				$('#depa').append('<option value="0">SELECCIONE...</option>');
+				$('#prov').html('<option value="0">SELECCIONE...</option>');
+				$('#dist').html('<option value="0">SELECCIONE...</option>');
+
+				load_ubigeo('DEP');
+			}
+
+			
+			function load_ubigeo(name) {
+
+				indice1 = $('#depa option:selected').attr('id');
+				indice2 = $('#prov option:selected').attr('id');
+
+				$.ajax({
+					type: "POST",
+					url: "json/ubigeo.json",
+					dataType:'json',
+					success: function(json_data){
+
+						if ( name == 'DEP' ){
+							for (var k in json_data.Ubigeo) {
+								$("#depa").append('<option id="' + k + '" value="' + json_data.Ubigeo[k].CCDD + '" >' + json_data.Ubigeo[k].Nombre + '</option>');
+							}
+
+						}else if ( name == 'PROV'){
+							for (var k in json_data.Ubigeo[indice1].PROVINCIA) {
+								$("#prov").append('<option id="' + k + '" value="' + json_data.Ubigeo[indice1].PROVINCIA[k].CCPP + '" >' +json_data.Ubigeo[indice1].PROVINCIA[k].Nombre + '</option>');
+							}
+
+						}else if ( name == 'DIST'){
+							for (var k in json_data.Ubigeo[indice1].PROVINCIA[indice2].DISTRITO) {
+								$("#dist").append('<option id="' + k + '" value="' + json_data.Ubigeo[indice1].PROVINCIA[indice2].DISTRITO[k].CCDI + '" >' +json_data.Ubigeo[indice1].PROVINCIA[indice2].DISTRITO[k].Nombre + '</option>');
+							}
+
+						}
+					}
+				});
+
+			}
+
+			function load_fusiontable( ) {
+
+				if ( layer != undefined ) layer.setMap(null);
+
+				maploaded = false;
+				checkGoogleMap();
+				infowindow.close();
+
+				// condicion = ( $('#cat').val() > 0 ) ? 'Categoria = '+$('#cat').val()+'' : 'Categoria > 0';
+				condicion = ( $('#depa').val() != 0 ) ? "CCDD = '"+$('#depa').val()+"'" : '';
+				condicion += ( $('#prov').val() != 0 ) ? " AND CCPP = '"+$('#prov').val()+"'" : '';
+				condicion += ( $('#dist').val() != 0 ) ? " AND CCDI = '"+$('#dist').val()+"'" : '';
+
+				var interval = setInterval(function(){
+						clearInterval(interval);
+						
+						layer = new google.maps.FusionTablesLayer({
+							query: {
+								select: " * ",
+								from: "1N7eA_fXUF2sdqiTIn8PDZkuu2IuT6KO_azLgv-TC",
+								where: condicion
+							},
+							suppressInfoWindows: true,
+							options: {
+								styleId: 2,
+								templateId: 2
+							}
+						});
+
+						layer.setMap(map);
+
+						
+						google.maps.event.addListener(layer, 'click', function(e) {
+							
+							var contentString = "<div>"+
+								"<div class='marker activeMarker'  style='width:420px !important; height:500px'>"+
+									"<div class='markerInfo activeInfo' style='display: block;position:relative;width:100%;height:100%'>"+
+
+										"<h2>LOCAL: "+e.row['COD_LOCAL'].value+" - PREDIO: "+e.row['PREDIO'].value+"</h2>"+
+										"<p><b>Departamento:</b> "+e.row['DEPARTAMENTO'].value+"</p>"+
+										"<p><b>Provincia:</b> "+e.row['PROVINCIA'].value+"</p>"+
+										"<p><b>Distrito:</b> "+e.row['DISTRITO'].value+"</p>"+
+										"<p><b>Centro Poblado:</b> "+e.row['CENTRO_POBLADO'].value+"</p>"+
+										"<p><b>Tipo de área:</b> "+e.row['AREA'].value+"</p>"+
+
+										"<h3>INSTITUCIONES EDUCATIVAS</h3>"+
+										"<p>"+e.row['INSTITUCION'].value+"</p>"+
+
+										"<img width='100%' height='259' alt='' src='http://jc.pe/portafolio/cie/cap3/"+e.row['RUTA_IMG'].value+"'/>"+
+
+									"</div>"+
+								"</div>"+
+							"<div>";
+
+							infowindow.setContent(contentString);
+							infolatlng = new google.maps.LatLng( parseFloat(e.row['LatitudPunto'].value),parseFloat(e.row['LongitudPunto'].value)),
+							infowindow.setPosition(infolatlng);
+							infowindow.open(map);
+
+						});
+
+
+
+						maploaded = true;
+						setTimeout('checkGoogleMap()',1000);
+				}, 3000);
+				
+			}
+
+			function load_kml_ft( tabla, code ) {
+
+				capaKml.setMap(null);
+
+				capaKml = new google.maps.FusionTablesLayer({
+					query: {
+						select: "geometry",
+						from: tabla,
+						where: 'Ubigeo = ' + code,
+					},
+					options: {
+						styleId: 2,
+						templateId: 2
+					}
+				});
+				capaKml.setMap(map);
+
+
+				var queryText = "SELECT Ubigeo, geometry FROM " + tabla + " Where Ubigeo = " + code;
+				var encodedQuery = encodeURIComponent(queryText);
+
+				var query = new google.visualization.Query('http://www.google.com/fusiontables/gvizdata?tq=' + queryText);
+
+				query.send(zoomTo);
+			}
+
+			function zoomTo(response) {
+				if (!response) {
+					alert('no response');
+					return;
+				}
+				if (response.isError()) {
+					alert('Error in query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+					return;
+				} 
+				FTresponse = response;
+
+				var kml =  FTresponse.getDataTable().getValue(0,1);
+				// create a geoXml3 parser for the click handlers
+				var geoXml = new geoXML3.parser({
+					map: map,
+					zoom: false
+				});
+
+				geoXml.parseKmlString("<Placemark>"+kml+"</Placemark>");
+				geoXml.docs[0].gpolygons[0].setMap(null);
+				map.fitBounds(geoXml.docs[0].gpolygons[0].bounds);
+			}
+
+
+
+		});
+		
+	</script>
+
+</head>
+<body>
+
+	<div id="header" class="container-fluid" style="border-top:5px solid #00A1C7 !important; background: url(img/bannerinei.png) no-repeat scroll right 0 #EFF7FA !important;" >
+		<a id="logo" href="#">
+			<img border="0" style="CURSOR: hand" src="img/inei.jpg" width='60' height='20'>
+			</a>
+				<div id="titulo">
+					<td><b><font FACE="Aharoni">Censo de Infraestructura Educativa</font></b><td>
+				</div>
+				<div id="oted">
+					<tr> Oficina Técnica de Estadísticas Departamentales - OTED</tr>
+				</div>	
+	</div>
+
+	<div id="cuerpo" >
+		<div id="msg"></div>
+		<div class="map_container">
+			<div id="map-canvas"></div>
+		</div>
+
+		<div class="filtro_map preguntas_sub2 span2">
+
+			<div id="dv_dep" class="row-fluid control-group span9">
+				<label class="preguntas_sub2" for="depa">DEPARTAMENTO</label>
+				<div class="controls">
+					<select id="depa" class="span12" name="depa">
+						<!-- ajax -->
+					</select>
+				</div>
+			</div>
+
+			<div id="dv_prov" class="row-fluid control-group span9">
+				<label class="preguntas_sub2" for="prov">PROVINCIA</label>
+				<div class="controls">
+					<select id="prov" class="span12" name="prov">
+						<option id="0" value="0">TODOS...</option>
+						<!-- ajax -->
+					</select>
+				</div>
+			</div>
+
+			<div id="dv_dist" class="row-fluid control-group span9">
+				<label class="preguntas_sub2" for="dist">DISTRITO</label>
+				<div class="controls">
+					<select id="dist" class="span12" name="dist">
+						<option id="0" value="0">TODOS...</option>
+						<!-- ajax -->
+					</select>
+				</div>
+			</div>
+			
+	</div>
+	
+</body>
+</html>
