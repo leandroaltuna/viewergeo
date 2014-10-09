@@ -111,11 +111,31 @@
 
 				$('#prov').empty();
 				$("#prov").append('<option value="0">SELECCIONE...</option>');
-				if ( $(this).val() != 0 )
+				if ( $(this).val() != 0 && $(this).val() != 99 )
 				{
 					cod_ubigeo = $(this).val();
 					load_kml_ft( table_dpto, cod_ubigeo );
 					load_ubigeo('PROV');
+
+					load_fusiontable();
+				}
+				else if ( $(this).val() == 99)
+				{
+					map.setZoom(6);
+					map.setCenter(new google.maps.LatLng(-10.089204, -69.802552)),
+
+					capaKml.setMap(null);
+					capaKml = new google.maps.FusionTablesLayer({
+						query: {
+							select: "geometry",
+							from: table_dpto
+						},
+						options: {
+							styleId: 2,
+							templateId: 2
+						}
+					});
+					capaKml.setMap(map);
 
 					load_fusiontable();
 				}
@@ -160,6 +180,7 @@
 
 				$('#depa').empty();
 				$('#depa').append('<option value="0">SELECCIONE...</option>');
+				$('#depa').append('<option value="99">TODOS</option>');
 				$('#prov').html('<option value="0">SELECCIONE...</option>');
 				$('#dist').html('<option value="0">SELECCIONE...</option>');
 
@@ -208,7 +229,7 @@
 				infowindow.close();
 
 				// condicion = ( $('#cat').val() > 0 ) ? 'Categoria = '+$('#cat').val()+'' : 'Categoria > 0';
-				condicion = ( $('#depa').val() != 0 ) ? "CCDD = '"+$('#depa').val()+"'" : '';
+				condicion = ( $('#depa').val() != 0 && $('#depa').val() != 99 ) ? "CCDD = '"+$('#depa').val()+"'" : '';
 				condicion += ( $('#prov').val() != 0 ) ? " AND CCPP = '"+$('#prov').val()+"'" : '';
 				condicion += ( $('#dist').val() != 0 ) ? " AND CCDI = '"+$('#dist').val()+"'" : '';
 
@@ -259,8 +280,6 @@
 							infowindow.open(map);
 
 						});
-
-
 
 						maploaded = true;
 						setTimeout('checkGoogleMap()',1000);
